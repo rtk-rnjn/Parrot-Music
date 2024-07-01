@@ -1,0 +1,22 @@
+{
+    "cogs": [
+        {
+            "name": "Meta",
+            "description": "Meta commands for the bot.",
+            "path": "cogs.meta"
+        },
+        {
+            "name": "Config",
+            "description": "Configuration commands for the bot.",
+            "path": "cogs.config"
+        }
+    ],
+    "database_file": "db.sqlite",
+    "database_schema": "schema.sql",
+    "lavalink": {
+        "host": "localhost",
+        "port": 2333,
+        "password": "youshallnotpass"
+    },
+    "default_prefixes": ["p!", "P!"]
+}

@@ -1,0 +1,6 @@
+aiosqlite
+arrow
+discord.py
+jishaku
+python-dotenv
+uvloop ; sys_platform == "linux"
