@@ -137,16 +137,6 @@ class Music(Cog):
         await ctx.voice_client.skip(force=True)
         await ctx.tick()
 
-    @commands.command()
-    @both_in_voice_channel()
-    async def nightcore(self, ctx: Context) -> None:
-        """Set the filter to a nightcore style."""
-        filters: wavelink.Filters = ctx.voice_client.filters
-        filters.timescale.set(pitch=1.2, speed=1.2, rate=1)
-        await ctx.voice_client.set_filters(filters)
-
-        await ctx.tick()
-
     @commands.command(name="toggle", aliases=["pause", "resume"])
     @both_in_voice_channel()
     async def pause_resume(self, ctx: Context) -> None:

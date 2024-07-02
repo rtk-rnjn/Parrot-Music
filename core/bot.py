@@ -56,7 +56,7 @@ class Bot(commands.Bot):
                 print(f"[COG] `{cog}` loaded")
             except Exception as e:
                 print(f"[COG] `{cog}` failed to load: {e}")
-        
+
         self.global_commit.start()
 
     async def on_ready(self) -> None:
