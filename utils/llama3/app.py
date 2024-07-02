@@ -2,14 +2,9 @@ from __future__ import annotations
 
 import json
 from typing import TYPE_CHECKING, cast
-import requests
 
-from hints import (
-    GenerativeParametersType,
-    GenerativeResponse,
-    GenerativeResponseFinal,
-    ModelInfo,
-)
+import requests
+from hints import GenerativeParametersType, GenerativeResponse, GenerativeResponseFinal, ModelInfo
 
 if TYPE_CHECKING:
     from typing_extensions import Generator, Unpack

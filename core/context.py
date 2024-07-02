@@ -40,3 +40,25 @@ class Context(commands.Context):
             return False
 
         return dj_role in self.author.roles
+
+    async def prompt(self, *, content: str, delete_after: bool = False, timeout: float = 30.0) -> bool:
+        message = await self.send(content)
+
+        def check(reaction: discord.Reaction, user: discord.User) -> bool:
+            return user == self.author and reaction.message.id == message.id
+
+        await message.add_reaction("\N{WHITE HEAVY CHECK MARK}")
+        await message.add_reaction("\N{CROSS MARK}")
+
+        try:
+            reaction, _ = await self.bot.wait_for("reaction_add", check=check, timeout=timeout)
+        except TimeoutError:
+            await message.add_reaction("\N{ALARM CLOCK}")
+            return False
+
+        assert isinstance(reaction, discord.Reaction)
+
+        if delete_after:
+            await message.delete(delay=0)
+
+        return str(reaction.emoji) == "\N{WHITE HEAVY CHECK MARK}"

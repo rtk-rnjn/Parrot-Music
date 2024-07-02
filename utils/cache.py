@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, Literal
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, Concatenate, Literal, ParamSpec, TypeVar
 
 if TYPE_CHECKING:
     from core import Bot
@@ -9,6 +10,16 @@ if TYPE_CHECKING:
 SELECT_REGEX = re.compile(r"(SELECT) ([A-Z_]*) FROM (GUILDS|USERS) WHERE ID = (\?)")
 UPDATE_REGEX = re.compile(r"""(UPDATE) (GUILDS|USERS) SET ([A-Z_]*) = ([a-zA-Z0-9_'" \?]*) WHERE ID = (\?)""")
 INSERT_REGEX = re.compile(r"""(INSERT) INTO (GUILDS|USERS) \(([A-Z_ (,)?]*)\) VALUES \(([a-zA-Z0-9_'" (,)?\?]*)\)""")
+
+SP = ParamSpec("SP")
+TR = TypeVar("TR")
+TS = TypeVar("TS")
+
+
+def copy_method_signature(
+    f: Callable[Concatenate[Any, SP], Any],
+) -> Callable[[Callable[Concatenate[TS, ...], TR]], Callable[Concatenate[TS, SP], TR]]:
+    return lambda _: _  # type: ignore[return-value]
 
 
 class Cache:
@@ -119,11 +130,14 @@ class Cache:
         for column, value in zip(columns, args):
             self.__setitem__((f"{table}.{column}", args[index]), value)
 
+    @copy_method_signature(get)
     async def select(self, *args, **kwargs):
         return await self.get(*args, **kwargs)
 
+    @copy_method_signature(set)
     async def update(self, *args, **kwargs):
         return await self.set(*args, **kwargs)
-
+    
+    @copy_method_signature(put)
     async def insert(self, *args, **kwargs):
         return await self.put(*args, **kwargs)
