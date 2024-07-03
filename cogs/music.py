@@ -15,6 +15,7 @@ from utils import CONFIG, in_voice_channel, try_connect
 class Player(wavelink.Player):
     ctx: Context
     home: discord.abc.MessageableChannel
+    main_message: discord.Message
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -112,7 +113,8 @@ class Music(Cog):
 
         embed = self.playing_embed(player)
 
-        await player.home.send(embed=embed)  # type: ignore
+        msg = await player.home.send(embed=embed)  # type: ignore
+        player.main_message = msg
 
     @Cog.listener()
     async def on_wavelink_node_ready(self, payload: wavelink.NodeReadyEventPayload) -> None:
@@ -123,6 +125,9 @@ class Music(Cog):
         player: Player | None = cast(Player, payload.player)
         if player is None:
             return
+        
+        if hasattr(player, "main_message"):
+            await player.main_message.delete(delay=0)
 
         if not player.queue:
             try:
@@ -332,18 +337,15 @@ class Music(Cog):
             return
 
         if seek.startswith("+"):
-            seconds = ctx.voice_client.position + int(seek[1:])
+            seconds = ctx.voice_client.position + int(float(seek[1:]) * 1000)
         elif seek.startswith("-"):
-            seconds = ctx.voice_client.position - int(seek[1:])
+            seconds = ctx.voice_client.position - int(float(seek[1:]) * 1000)
         else:
-            seconds = int(seek)
+            seconds = int(float(seek) * 1000)
 
-        if seconds < 0:
-            seconds = 0
-        elif seconds > ctx.voice_client.current.length:
-            seconds = ctx.voice_client.current.length
+        seconds = max(0, min(seconds, ctx.voice_client.current.length))
 
-        await ctx.voice_client.seek(seconds * 1000)
+        await ctx.voice_client.seek(int(seconds))
         timestamp = f"{ctx.voice_client.position // 60000}:{(ctx.voice_client.position // 1000) % 60:02d}"
         duration_graph = ctx.voice_client.position / ctx.voice_client.current.length
         duration_bar = "\N{BLACK RECTANGLE}" * 20
