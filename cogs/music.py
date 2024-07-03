@@ -5,6 +5,7 @@ import re
 from typing import cast
 
 import discord
+from time import time
 import wavelink
 from discord.ext import commands
 from jishaku.paginators import PaginatorEmbedInterface
@@ -95,7 +96,7 @@ class Music(Cog):
             )
             .add_field(
                 name="Requested by",
-                value=f"`{player.ctx.author}` in `#{player.ctx.channel.name}`",
+                value=f"{player.ctx.author.mention}",
             )
         )
 
@@ -127,6 +128,10 @@ class Music(Cog):
         player: Player | None = cast(Player, payload.player)
         if player is None:
             return
+        
+        if player.channel.guild.id in self.skip_request:
+            await self.skip_request[player.channel.guild.id].delete(delay=0)
+            self.skip_request.pop(player.channel.guild.id)
 
         if hasattr(player, "main_message"):
             await player.main_message.delete(delay=0)
@@ -141,10 +146,14 @@ class Music(Cog):
                 if not player.playing:
                     await player.play(r)
 
-    @commands.command()
+    @commands.command(aliases=["connect"])
+    @commands.max_concurrency(1, per=commands.BucketType.guild)
     @in_voice_channel(user=True, bot=False)
     async def join(self, ctx: Context) -> None:
-        """Join the voice channel of the author."""
+        """Join the voice channel of the author. You must be in a voice channel to use this command.
+        
+        If bot is already connected somewhere else and the author is in a different channel, also the author is a DJ, it will ask if you want to move the player to your channel.
+        """
         assert ctx.author.voice
 
         if not ctx.author.voice.channel:
@@ -186,20 +195,25 @@ class Music(Cog):
 
     @commands.command()
     @in_voice_channel(user=True, bot=True, same=False)
+    @commands.max_concurrency(1, per=commands.BucketType.guild)
     @Context.dj_only()
-    async def move(self, ctx: Context) -> None:
-        """Move the bot to the voice channel of the author."""
-        assert ctx.author.voice
+    async def move(self, ctx: Context, *, channel: discord.VoiceChannel | None = None) -> None:
+        """Move the bot to the voice channel of the author. You and the bot must be in a voice channel to use this command.
 
-        if not ctx.author.voice.channel:
+        If the bot is already in the author's channel, it will ask if you want to move the player to your channel.
+        """
+        assert ctx.author.voice and ctx.author.voice.channel
+
+        if not (channel or ctx.author.voice.channel):
             return
 
         warning = ""
         if ctx.voice_client.playing:
-            warning = "The player is currently playing in another channel."
+            warning = "The player is currently playing in another channel. "
 
-        if ctx.voice_client and ctx.voice_client.channel == ctx.author.voice.channel:
-            await ctx.reply("Bot is already in your voice channel.", delete_after=10)
+
+        if ctx.voice_client and ctx.voice_client.channel == (channel or ctx.author.voice.channel):
+            await ctx.reply(f"Bot is already in {channel.mention if channel else ctx.author.voice.channel.mention}.", delete_after=10)
             return
 
         if not ctx.voice_client:
@@ -207,21 +221,25 @@ class Music(Cog):
             return
 
         prompt = await ctx.prompt(
-            f"Bot is currently connected to `{ctx.voice_client.channel.name}`. {warning} Do you want to move the player to your channel?",
+            f"Bot is currently connected to {ctx.voice_client.channel.mention}. {warning}Do you want to move the player to your channel?",
             delete_after=True,
         )
         if not prompt:
             return
 
-        await ctx.voice_client.move_to(ctx.author.voice.channel)
+        await ctx.voice_client.move_to(channel or ctx.author.voice.channel)
         await ctx.reply(f"Moved the player to {ctx.author.voice.channel.mention}.")
         await ctx.tick()
 
     @commands.command()
+    @commands.max_concurrency(1, per=commands.BucketType.guild)
     @in_voice_channel(user=True)
     @try_connect(cls=Player)
     async def play(self, ctx: Context, *, query: str) -> None:
-        """Play a song with the given query."""
+        """Play a song with the given query. You must be in a voice channel to use this command.
+        
+        If the bot is not connected to a voice channel, it will try to connect to the author's channel.
+        """
 
         if ctx.voice_client.home != ctx.channel:
             await ctx.reply(
@@ -249,11 +267,14 @@ class Music(Cog):
             await ctx.voice_client.play(ctx.voice_client.queue.get())
 
     @commands.command()
-    @in_voice_channel(user=True)
-    @try_connect(cls=Player)
+    @commands.max_concurrency(1, per=commands.BucketType.guild)
+    @in_voice_channel(user=True, bot=True, same=True)
     @Context.with_typing
     async def search(self, ctx: Context, *, query: str) -> None:
-        """Search for a song with the given query."""
+        """Search for a song with the given query. You and the bot must be in same voice channel to use this command.
+
+        The bot will show the top 10 results and ask you to select a song by typing the number of the song you want to play.
+        """
         tracks: wavelink.Search = await wavelink.Playable.search(query)
         if not tracks:
             await ctx.reply(f"{ctx.author.mention} - Could not find any tracks with that query. Please try again.")
@@ -292,11 +313,63 @@ class Music(Cog):
             await msg.delete(delay=0)
             return await self.play(ctx, query=f"{tracks[index].title} {tracks[index].author}")
 
+    skip_request: dict[int, discord.Message] = {}
+
     @commands.command()
+    @commands.max_concurrency(1, per=commands.BucketType.guild)
     @in_voice_channel(bot=True, user=True, same=True)
     async def skip(self, ctx: Context) -> None:
-        """Skip the current song."""
-        await ctx.voice_client.skip(force=True)
+        """Skip the current song. You and the bot must be in the same voice channel to use this command.
+        
+        If the author is a DJ, the bot will skip the current song without any votes.
+
+        To skip a song without being a DJ, you must have more than 50% of the members in the voice channel to vote to skip the song.
+        """
+        if ctx.is_dj():
+            await ctx.voice_client.skip(force=True)
+            await ctx.tick()
+            self.skip_request.pop(ctx.guild.id, None)
+            return
+
+        assert ctx.author.voice and ctx.author.voice.channel
+
+        members = ctx.author.voice.channel.members
+
+        assert len(members) > 3
+
+        count = 1
+
+        def check(reaction: discord.Reaction, user: discord.User) -> bool:
+            return user in members and reaction.emoji in {"\N{WHITE HEAVY CHECK MARK}", "\N{NEGATIVE SQUARED CROSS MARK}"}
+        
+        message = f"{ctx.author.mention} wants to skip the current song. React with \N{WHITE HEAVY CHECK MARK} to vote to skip the song."
+        msg = await ctx.reply(
+            f"{message} {count}/{len(members) // 2} votes are required to skip the song.",
+        )
+
+        self.skip_request[ctx.guild.id] = msg
+
+        await msg.add_reaction("\N{WHITE HEAVY CHECK MARK}")
+        await msg.add_reaction("\N{NEGATIVE SQUARED CROSS MARK}")
+
+        now = time() + (ctx.voice_client.position / 1000) - 1
+        while count < len(members) // 2 and time() < now:
+            try:
+                reaction, _ = await ctx.bot.wait_for("reaction_add", check=check)
+            except asyncio.TimeoutError:
+                await msg.delete(delay=0)
+                await ctx.add_reaction(["\N{ALARM CLOCK}"], message=msg, raise_exception=False)
+                return
+
+            count += 1
+            await msg.edit(content=f"{message} {count}/{len(members) // 2} votes are required to skip the song.")
+        
+        if count >= len(members) // 2 and self.skip_request.get(ctx.guild.id):
+            await ctx.voice_client.skip(force=True)
+            await ctx.tick()
+            self.skip_request.pop(ctx.guild.id, None)
+            return
+
         await ctx.tick()
 
     @commands.command(name="toggle", aliases=["pause", "resume"])

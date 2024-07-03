@@ -97,3 +97,14 @@ class Context(commands.Context):
             await message.delete(delay=0)
 
         return str(reaction.emoji) == "\N{WHITE HEAVY CHECK MARK}"
+
+    async def add_reaction(self, emojis: list[str], *, message: discord.Message | None = None, raise_exception: bool = False) -> None:
+        if message is None:
+            message = self.message
+
+        for emoji in emojis:
+            try:
+                await message.add_reaction(emoji)
+            except discord.HTTPException as e:
+                if raise_exception:
+                    raise e
