@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 import discord
 from discord.ext import commands
-
+from functools import wraps
 if TYPE_CHECKING:
     from cogs.music import Player
-    from core.bot import Bot
-
+    from bot import Bot
+    from cog import Cog
 
 class Context(commands.Context):
     if TYPE_CHECKING:
@@ -25,7 +25,10 @@ class Context(commands.Context):
             pass
 
     async def is_dj(self) -> bool:
-        if self.author.guild_permissions.manage_guild:
+        if self.author.guild_permissions.manage_channels:
+            return True
+
+        if self.author.voice and self.author.voice.channel and len(self.author.voice.channel.members) < 3:
             return True
 
         query = r"""SELECT DJ_ROLE FROM GUILDS WHERE ID = ?"""
@@ -33,15 +36,35 @@ class Context(commands.Context):
         dj_role = await self.bot.cache.get(query, (self.guild.id,))
 
         if dj_role is None:
-            return False
+            return True
 
         dj_role = self.guild.get_role(dj_role)
         if dj_role is None:
-            return False
+            return True
 
         return dj_role in self.author.roles
 
-    async def prompt(self, *, content: str, delete_after: bool = False, timeout: float = 30.0) -> bool:
+    @staticmethod
+    def dj_only():
+        async def predicate(ctx: Context) -> bool:
+            dj = await ctx.is_dj()
+            if not dj:
+                raise commands.CheckFailure("You must be a DJ to use this command.")
+            return True
+
+        return commands.check(predicate)
+
+    @staticmethod
+    def with_typing(func: Callable):
+        @wraps(func)
+        async def wrapped(*args, **kwargs) -> discord.Message | None:
+            context: Context | Cog = args[0] if isinstance(args[0], Context) else args[1]
+            async with context.typing():
+                return await func(*args, **kwargs)
+    
+        return wrapped
+
+    async def prompt(self, content: str, *, delete_after: bool = False, timeout: float = 30.0) -> bool:
         message = await self.send(content)
 
         def check(reaction: discord.Reaction, user: discord.User) -> bool:

@@ -9,6 +9,11 @@
             "name": "Config",
             "description": "Configuration commands for the bot.",
             "path": "cogs.config"
+        },
+        {
+            "name": "Music",
+            "description": "Music commands for the bot.",
+            "path": "cogs.music"
         }
     ],
     "database_file": "db.sqlite",

@@ -43,3 +43,7 @@ class Admin(Cog):
         query = r"""UPDATE USERS SET BLACKLISTED = 0 WHERE ID = ?"""
         await self.bot.cache.update(query, (obj.id,))
         await ctx.tick()
+
+
+async def setup(bot: Bot) -> None:
+    await bot.add_cog(Admin(bot))

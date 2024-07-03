@@ -4,7 +4,8 @@ import json
 from typing import TYPE_CHECKING, cast
 
 import requests
-from hints import GenerativeParametersType, GenerativeResponse, GenerativeResponseFinal, ModelInfo
+from hints import (GenerativeParametersType, GenerativeResponse,
+                   GenerativeResponseFinal, ModelInfo)
 
 if TYPE_CHECKING:
     from typing_extensions import Generator, Unpack

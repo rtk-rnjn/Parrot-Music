@@ -122,3 +122,12 @@ class Bot(commands.Bot):
         if self.need_commit:
             await self.sql.commit()
             self.need_commit = False
+
+    async def on_command_error(self, context: Context, exception: commands.CommandError) -> None:
+        exception = getattr(exception, "original", exception)
+
+        if isinstance(exception, commands.CommandNotFound):
+            return
+
+        await context.reply(f"An error occurred: {exception}")
+        raise exception

@@ -137,7 +137,7 @@ class Cache:
     @copy_method_signature(set)
     async def update(self, *args, **kwargs):
         return await self.set(*args, **kwargs)
-    
+
     @copy_method_signature(put)
     async def insert(self, *args, **kwargs):
         return await self.put(*args, **kwargs)
