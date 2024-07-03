@@ -39,10 +39,10 @@ def try_connect(*, cls: Type[Player]) -> Check[Context]:
     async def predicate(ctx: Context) -> bool:
         if ctx.author.voice is None:
             raise commands.CheckFailure("You must be in a voice channel to use this command.")
-        
+
         if ctx.voice_client and ctx.voice_client.channel == ctx.author.voice.channel:
             return True
-        
+
         if ctx.voice_client and ctx.voice_client.channel != ctx.author.voice.channel:
             raise commands.CheckFailure(f"Bot is already in a voice channel ({ctx.voice_client.channel.mention}).")
 

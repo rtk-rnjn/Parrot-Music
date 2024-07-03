@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+from functools import wraps
 from typing import TYPE_CHECKING, Callable
 
 import discord
 from discord.ext import commands
-from functools import wraps
+
 if TYPE_CHECKING:
-    from cogs.music import Player
     from bot import Bot
     from cog import Cog
+
+    from cogs.music import Player
+
 
 class Context(commands.Context):
     if TYPE_CHECKING:
@@ -18,6 +21,7 @@ class Context(commands.Context):
         guild: discord.Guild
 
     async def tick(self, *, value: bool = True) -> None:
+        # sourcery skip: use-contextlib-suppress
         emoji = "\N{WHITE HEAVY CHECK MARK}" if value else "\N{CROSS MARK}"
         try:
             await self.message.add_reaction(emoji)
@@ -28,7 +32,13 @@ class Context(commands.Context):
         if self.author.guild_permissions.manage_channels:
             return True
 
-        if self.author.voice and self.author.voice.channel and len(self.author.voice.channel.members) < 3:
+        if (
+            self.author.voice
+            and self.author.voice.channel
+            and len(self.author.voice.channel.members) < 3
+            and self.voice_client
+            and self.voice_client.channel == self.author.voice.channel
+        ):
             return True
 
         query = r"""SELECT DJ_ROLE FROM GUILDS WHERE ID = ?"""
@@ -39,10 +49,7 @@ class Context(commands.Context):
             return True
 
         dj_role = self.guild.get_role(dj_role)
-        if dj_role is None:
-            return True
-
-        return dj_role in self.author.roles
+        return True if dj_role is None else dj_role in self.author.roles
 
     @staticmethod
     def dj_only():
@@ -61,11 +68,16 @@ class Context(commands.Context):
             context: Context | Cog = args[0] if isinstance(args[0], Context) else args[1]
             async with context.typing():
                 return await func(*args, **kwargs)
-    
+
         return wrapped
 
-    async def prompt(self, content: str, *, delete_after: bool = False, timeout: float = 30.0) -> bool:
-        message = await self.send(content)
+    async def prompt(
+        self, content: str, *, delete_after: bool = False, timeout: float = 30.0, message: discord.Message | None = None
+    ) -> bool:
+        if message is None:
+            message = await self.send(content)
+        else:
+            message = await message.edit(content=content)
 
         def check(reaction: discord.Reaction, user: discord.User) -> bool:
             return user == self.author and reaction.message.id == message.id

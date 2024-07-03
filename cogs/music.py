@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import cast
 
 import discord
@@ -14,7 +15,7 @@ from utils import CONFIG, in_voice_channel, try_connect
 
 class Player(wavelink.Player):
     ctx: Context
-    home: discord.abc.MessageableChannel
+    home: discord.TextChannel | discord.VoiceChannel
     main_message: discord.Message
 
     def __init__(self, *args, **kwargs) -> None:
@@ -45,7 +46,10 @@ class Music(Cog):
             password=CONFIG.lavalink.password,
         )
 
-        self._pool = await wavelink.Pool.connect(nodes=[node], client=self.bot, cache_capacity=100)
+        await wavelink.Pool.connect(nodes=[node], client=self.bot, cache_capacity=100)
+
+    async def cog_unload(self) -> None:
+        await wavelink.Pool.close()
 
     def playing_embed(self, player: Player) -> discord.Embed:
         playable = player.current
@@ -59,12 +63,6 @@ class Music(Cog):
         else:
             description = f"**{playable.title}**"
 
-        embed = discord.Embed(
-            description=description,
-            timestamp=discord.utils.utcnow(),
-        )
-        embed.set_author(name=f"Author: {playable.author}")
-
         duration_graph = player.position / playable.length
         duration_bar = "\N{BLACK RECTANGLE}" * 20
         duration_bar = (
@@ -72,9 +70,13 @@ class Music(Cog):
         )
 
         timestamp = f"{player.position // 60000}:{(player.position // 1000) % 60:02d}"
-
-        (
-            embed.add_field(
+        embed = (
+            discord.Embed(
+                description=description,
+                timestamp=discord.utils.utcnow(),
+            )
+            .set_author(name=f"Author: {playable.author}")
+            .add_field(
                 name=f"Duration [{timestamp}/{playable.length // 60000}:{(playable.length // 1000) % 60:02d}]",
                 value=f"`{duration_bar}`",
                 inline=False,
@@ -88,12 +90,12 @@ class Music(Cog):
                 value="Yes" if player.loop else "No",
             )
             .add_field(
-                name=f"Queue [{player.queue.count}]",
+                name=f"Queue [{player.queue.count or 'Empty'}]",
                 value=f"Next: {player.queue._items[0] if player.queue else 'None'}",
             )
             .add_field(
                 name="Requested by",
-                value=f"{player.ctx.author.mention} in {player.ctx.channel.mention}",  # type: ignore
+                value=f"`{player.ctx.author}` in `#{player.ctx.channel.name}`",
             )
         )
 
@@ -113,7 +115,7 @@ class Music(Cog):
 
         embed = self.playing_embed(player)
 
-        msg = await player.home.send(embed=embed)  # type: ignore
+        msg = await player.home.send(embed=embed)
         player.main_message = msg
 
     @Cog.listener()
@@ -125,7 +127,7 @@ class Music(Cog):
         player: Player | None = cast(Player, payload.player)
         if player is None:
             return
-        
+
         if hasattr(player, "main_message"):
             await player.main_message.delete(delay=0)
 
@@ -140,6 +142,82 @@ class Music(Cog):
                     await player.play(r)
 
     @commands.command()
+    @in_voice_channel(user=True, bot=False)
+    async def join(self, ctx: Context) -> None:
+        """Join the voice channel of the author."""
+        assert ctx.author.voice
+
+        if not ctx.author.voice.channel:
+            return
+
+        if ctx.voice_client and ctx.voice_client.channel == ctx.author.voice.channel:
+            await ctx.reply("Bot is already in a voice channel.", delete_after=10)
+            return
+
+        if ctx.voice_client:
+            warning = ""
+            if ctx.voice_client.playing:
+                warning = "The player is currently playing in another channel."
+            msg = await ctx.reply(
+                f"Bot is already connected to `{ctx.voice_client.channel.name}`. {warning}",
+                delete_after=10,
+            )
+            if await ctx.is_dj():
+                prompt = await ctx.prompt(
+                    f"{msg.content.strip()} Do you want to move the player to your channel?",
+                    delete_after=True,
+                    message=msg,
+                )
+                if not prompt:
+                    return
+
+                await ctx.voice_client.move_to(ctx.author.voice.channel)
+                await ctx.reply(f"Moved the player to {ctx.author.voice.channel.mention}.")
+                await ctx.tick()
+            return
+
+        try:
+            player = await ctx.author.voice.channel.connect(cls=Player)  # type: ignore
+            player.home = ctx.channel  # type: ignore
+            player.ctx = ctx
+            await ctx.tick()
+        except discord.ClientException:
+            await ctx.reply("Failed connecting to channel", delete_after=10)
+
+    @commands.command()
+    @in_voice_channel(user=True, bot=True, same=False)
+    @Context.dj_only()
+    async def move(self, ctx: Context) -> None:
+        """Move the bot to the voice channel of the author."""
+        assert ctx.author.voice
+
+        if not ctx.author.voice.channel:
+            return
+
+        warning = ""
+        if ctx.voice_client.playing:
+            warning = "The player is currently playing in another channel."
+
+        if ctx.voice_client and ctx.voice_client.channel == ctx.author.voice.channel:
+            await ctx.reply("Bot is already in your voice channel.", delete_after=10)
+            return
+
+        if not ctx.voice_client:
+            await ctx.reply("Bot is not in a voice channel.", delete_after=10)
+            return
+
+        prompt = await ctx.prompt(
+            f"Bot is currently connected to `{ctx.voice_client.channel.name}`. {warning} Do you want to move the player to your channel?",
+            delete_after=True,
+        )
+        if not prompt:
+            return
+
+        await ctx.voice_client.move_to(ctx.author.voice.channel)
+        await ctx.reply(f"Moved the player to {ctx.author.voice.channel.mention}.")
+        await ctx.tick()
+
+    @commands.command()
     @in_voice_channel(user=True)
     @try_connect(cls=Player)
     async def play(self, ctx: Context, *, query: str) -> None:
@@ -147,30 +225,25 @@ class Music(Cog):
 
         if ctx.voice_client.home != ctx.channel:
             await ctx.reply(
-                f"You can only play songs in {ctx.voice_client.home.mention}, as the player has already started there."  # type: ignore
+                f"You can only play songs in {ctx.voice_client.home.mention}, as the player has already started there.",  # type: ignore
+                delete_after=10,
             )
             return
 
         tracks: wavelink.Search = await wavelink.Playable.search(query)
         if not tracks:
-            await ctx.reply(f"{ctx.author.mention} - Could not find any tracks with that query. Please try again.")
+            await ctx.reply(
+                f"{ctx.author.mention} - Could not find any tracks with that query. Please try again.", delete_after=10
+            )
             return
 
-        if isinstance(tracks, wavelink.Playlist):
-            added = 0
-            for track in tracks:
-                track.extras = {"requester_id": ctx.author.id}
-                await ctx.voice_client.queue.put_wait(track)
-                added += 1
-
-            await ctx.reply(f"Added the playlist **`{tracks.name}`** ({added} songs) to the queue.")
-        else:
-            track: wavelink.Playable = tracks[0]
-
+        added = 0
+        for track in tracks:
             track.extras = {"requester_id": ctx.author.id}
-
             await ctx.voice_client.queue.put_wait(track)
-            await ctx.reply(f"Added **`{track}`** to the queue.")
+            added += 1
+
+            await ctx.reply(f"Added the {added} songs to the queue.", delete_after=10)
 
         if not ctx.voice_client.playing:
             await ctx.voice_client.play(ctx.voice_client.queue.get())
@@ -243,9 +316,33 @@ class Music(Cog):
 
     @commands.command()
     @in_voice_channel(bot=True, user=True, same=True)
-    async def volume(self, ctx: Context, *, percentage: float) -> None:
-        """Set the volume of the Player."""
-        await ctx.voice_client.set_volume(int(percentage * 10))
+    async def volume(self, ctx: Context, *, percentage: str) -> None:
+        """Set the volume of the Player. The volume must be between 0 and 100. Also supports + and - for relative volume changes.
+
+        Examples:
+        - `volume 50` - Sets the volume to 50%.
+        - `volume +10` - Increases the volume by 10%.
+        - `volume -10` - Decreases the volume by 10%.
+        """
+        if not re.match(r"(\+|-)?\d+(\.\d+)?", percentage):
+            await ctx.reply("Invalid volume percentage. Please provide a valid percentage.", delete_after=10)
+            return
+
+        if percentage.startswith("+"):
+            vol = ctx.voice_client.volume + int(float(percentage[1:]) * 10)
+        elif percentage.startswith("-"):
+            vol = ctx.voice_client.volume - int(float(percentage[1:]) * 10)
+        else:
+            vol = int(float(percentage) * 10)
+
+        await ctx.voice_client.set_volume(vol)
+        await ctx.tick()
+
+    @commands.command()
+    @in_voice_channel(bot=True, user=True, same=True)
+    async def shuffle(self, ctx: Context) -> None:
+        """Shuffle the queue."""
+        ctx.voice_client.queue.shuffle()
         await ctx.tick()
 
     @commands.command(name="nowplaying", aliases=["np", "current", "currentsong"])
@@ -290,7 +387,7 @@ class Music(Cog):
     @Context.dj_only()
     async def clear(self, ctx: Context) -> None:
         """Clear the current queue."""
-        prompt = await ctx.prompt("Are you sure you want to clear the queue?")
+        prompt = await ctx.prompt("Are you sure you want to clear the queue?", delete_after=True)
         if not prompt:
             return
         ctx.voice_client.queue.clear()
@@ -309,7 +406,7 @@ class Music(Cog):
         try:
             data: dict = await node.send("GET", path=path)
         except (wavelink.LavalinkException, wavelink.NodeException):
-            await ctx.reply("There are no lyrics available for this song.")
+            await ctx.reply("There are no lyrics available for this song.", delete_after=10)
             return
 
         paginator = commands.Paginator(prefix="", suffix="", max_size=1900)
@@ -332,8 +429,12 @@ class Music(Cog):
         - `seek +10` - Seeks 10 seconds forward.
         - `seek -10` - Seeks 10 seconds backward.
         """
+        if not re.match(r"(\+|-)?\d+(\.\d+)?", seek):
+            await ctx.reply("Invalid seek time. Please provide a valid time.", delete_after=10)
+            return
+
         if ctx.voice_client.current is None:
-            await ctx.reply("There is currently no song playing.")
+            await ctx.reply("There is currently no song playing.", delete_after=10)
             return
 
         if seek.startswith("+"):
