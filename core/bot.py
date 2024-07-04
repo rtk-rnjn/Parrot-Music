@@ -131,3 +131,7 @@ class Bot(commands.Bot):
 
         await context.reply(f"An error occurred: {exception}")
         raise exception
+    
+    @property
+    def music_cog(self):
+        return self.get_cog("Music")
