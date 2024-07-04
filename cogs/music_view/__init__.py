@@ -33,10 +33,10 @@ class MusicView(discord.ui.View):
     async def toggle_pause(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         player = cast(wavelink.Player, self.ctx.voice_client)
         if not player.paused:
-            await self.update_button_state(button, "Play", "paused", "\N{BLACK RIGHT-POINTING TRIANGLE}", interaction,)
+            await self.update_button_and_notify_(button, "Play", "paused", "\N{BLACK RIGHT-POINTING TRIANGLE}", interaction,)
             await player.pause(True)
         else:
-            await self.update_button_state(button, "Pause", "resumed", "\N{DOUBLE VERTICAL BAR}", interaction)
+            await self.update_button_and_notify(button, "Pause", "resumed", "\N{DOUBLE VERTICAL BAR}", interaction)
             await player.pause(False)
 
     @discord.ui.button(label="Stop", style=discord.ButtonStyle.danger, emoji="\N{BLACK SQUARE FOR STOP}")
