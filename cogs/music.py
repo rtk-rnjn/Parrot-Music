@@ -21,7 +21,6 @@ class Player(wavelink.Player):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.loop = False
 
     async def is_dj(self) -> bool:
         """Shortcut from ctx.is_dj."""
@@ -529,6 +528,21 @@ class Music(Cog):
         await ctx.reply(
             f"Seeked to {timestamp}/{ctx.voice_client.current.length // 60000}:{(ctx.voice_client.current.length // 1000) % 60:02d}\n`{duration_bar}`"
         )
+
+    @commands.command()
+    @in_voice_channel(bot=True, user=True, same=True)
+    @Context.dj_only()
+    async def loop(self, ctx: Context) -> None:
+        """Loop the current song. This will toggle the loop state of the player."""
+        if ctx.voice_client.queue.count:
+            prompt = await ctx.prompt("Do you want to loop the current song? Deny to loop entire Queue", delete_after=True)
+            if not prompt:
+                ctx.voice_client.queue.mode = wavelink.QueueMode.loop_all
+            else:
+                ctx.voice_client.queue.mode = wavelink.QueueMode.loop
+        else:
+            ctx.voice_client.queue.mode = wavelink.QueueMode.loop
+        await ctx.tick()
 
 
 async def setup(bot: Bot) -> None:
