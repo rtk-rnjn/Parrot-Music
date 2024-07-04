@@ -8,12 +8,12 @@ import re
 import aiosqlite
 import discord
 import jishaku  # noqa: F401
-import jishaku.help_command
 from discord.ext import commands, tasks
 
 from utils import CONFIG, Cache
 
 from .context import Context
+from .help import HelpCommand
 
 os.environ["JISHAKU_HIDE"] = "True"
 os.environ["JISHAKU_NO_UNDERSCORE"] = "True"
@@ -35,7 +35,7 @@ class Bot(commands.Bot):
             command_prefix=self.get_prefix,  # type: ignore
             case_insensitive=True,
             intents=discord.Intents.all(),
-            help_command=jishaku.help_command.MinimalEmbedPaginatorHelp(),
+            help_command=HelpCommand(),
             **kwargs,
         )
         self.version: tuple[int, int, int] = version
