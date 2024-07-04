@@ -23,7 +23,7 @@ class MusicView(discord.ui.View):
         if self.message:
             await self.message.edit(view=self)
 
-    async def update_button_state(self, button: discord.ui.Button, label: str, state: str, emoji: str, interaction: discord.Interaction) -> None:
+    async def update_button_and_notify(self, button: discord.ui.Button, label: str, state: str, emoji: str, interaction: discord.Interaction) -> None:
         button.label = label
         button.emoji = emoji
         await self.message.edit(view=self)
