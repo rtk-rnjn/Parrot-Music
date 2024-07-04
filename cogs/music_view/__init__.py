@@ -54,7 +54,6 @@ class MusicView(discord.ui.View):
         if self.ctx.voice_client.queue.count == 0:
             await interaction.response.send_message("There are no songs in the queue.", ephemeral=True)
             return
-
         if self.ctx.is_dj():
             await self.ctx.voice_client.skip(force=True)
             await self.ctx.tick()
@@ -66,6 +65,8 @@ class MusicView(discord.ui.View):
         assert len(members) > 3
         count = 1
 
+        await self.ctx.defer()
+        
         def check(reaction: discord.Reaction, user: discord.User) -> bool:
             return user in members and reaction.emoji in {"\N{WHITE HEAVY CHECK MARK}", "\N{NEGATIVE SQUARED CROSS MARK}"}
 
@@ -74,6 +75,8 @@ class MusicView(discord.ui.View):
         self.bot.music_cog.skip_request[self.ctx.guild.id] = msg
         await msg.add_reaction("\N{WHITE HEAVY CHECK MARK}")
         await msg.add_reaction("\N{NEGATIVE SQUARED CROSS MARK}")
+
+        
 
         now = time() + (self.ctx.voice_client.position / 1000) - 1
         while count < len(members) // 2 and time() < now:
