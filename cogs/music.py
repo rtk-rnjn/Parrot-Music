@@ -134,6 +134,9 @@ class Music(Cog):
 
         if hasattr(player, "main_message"):
             await player.main_message.delete(delay=0)
+        
+        if not player.playing and player.queue.mode.value in {1, 2}:
+            await player.play(player.queue.get())
 
         if not player.queue:
             try:
