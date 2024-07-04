@@ -87,7 +87,7 @@ class Music(Cog):
             )
             .add_field(
                 name="Looping",
-                value="Yes" if player.loop else "No",
+                value="Yes" if player.queue.mode in {1, 2} else "No",
             )
             .add_field(
                 name=f"Queue [{player.queue.count or 'Empty'}]",
