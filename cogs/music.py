@@ -12,7 +12,8 @@ from jishaku.paginators import PaginatorEmbedInterface
 
 from core import Bot, Cog, Context
 from utils import CONFIG, in_voice_channel, try_connect
-
+from .music_view import MusicView
+from cogs import music_view
 
 class Player(wavelink.Player):
     ctx: Context
@@ -114,8 +115,11 @@ class Music(Cog):
             return
 
         embed = self.playing_embed(player)
-
-        msg = await player.home.send(embed=embed)
+        view = MusicView(timeout=player.current.length/1000)
+        view.ctx = player.ctx
+        view.bot = self.bot
+        msg = await player.home.send(embed=embed, view=view)
+        view.message = msg
         player.main_message = msg
 
     @Cog.listener()
