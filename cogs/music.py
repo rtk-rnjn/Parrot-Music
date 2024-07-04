@@ -335,8 +335,8 @@ class Music(Cog):
             if index >= 10:
                 break
 
-        await ctx.reply(st)
-        msg = await ctx.send("Please select a song by typing the number of the song you want to play.")
+        listed_message = await ctx.reply(st)
+        msg = await listed_message.reply(f"{ctx.author.mention} Please select a song by typing the number of the song you want to play.")
 
         while True:
             try:
