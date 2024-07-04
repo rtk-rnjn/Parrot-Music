@@ -191,6 +191,7 @@ class Music(Cog):
             player = await ctx.author.voice.channel.connect(cls=Player)  # type: ignore
             player.home = ctx.channel  # type: ignore
             player.ctx = ctx
+            await ctx.reply(f"Connected to {ctx.author.voice.channel.mention}.")
             await ctx.tick()
         except discord.ClientException:
             await ctx.reply("Failed connecting to channel")
@@ -269,7 +270,7 @@ class Music(Cog):
             added += 1
             break
 
-        await ctx.reply(f"Added the {added} song(s) to the queue.")
+        await ctx.reply(f"Added the **{added}** song(s) to the queue.")
 
         if not ctx.voice_client.playing:
             await ctx.voice_client.play(ctx.voice_client.queue.get())
@@ -307,7 +308,7 @@ class Music(Cog):
             await ctx.voice_client.queue.put_wait(track)
             added += 1
 
-        await ctx.reply(f"Added the {added} song(s) to the queue.")
+        await ctx.reply(f"Added the **{added}** song(s) to the queue.")
 
         if not ctx.voice_client.playing:
             await ctx.voice_client.play(ctx.voice_client.queue.get())
@@ -451,11 +452,13 @@ class Music(Cog):
             return
 
         if percentage.startswith("+"):
-            vol = ctx.voice_client.volume + int(float(percentage[1:]) * 10)
+            vol = ctx.voice_client.volume + int(float(percentage[1:]))
         elif percentage.startswith("-"):
-            vol = ctx.voice_client.volume - int(float(percentage[1:]) * 10)
+            vol = ctx.voice_client.volume - int(float(percentage[1:]))
         else:
-            vol = int(float(percentage) * 10)
+            vol = int(float(percentage))
+
+        vol = max(0, min(vol, 100))
 
         await ctx.voice_client.set_volume(vol)
         await ctx.tick()
