@@ -162,7 +162,7 @@ class Music(Cog):
             return
 
         if ctx.voice_client and ctx.voice_client.channel == ctx.author.voice.channel:
-            await ctx.reply("Bot is already in a voice channel.", delete_after=10)
+            await ctx.reply("Bot is already in a voice channel.")
             return
 
         if ctx.voice_client:
@@ -193,7 +193,7 @@ class Music(Cog):
             player.ctx = ctx
             await ctx.tick()
         except discord.ClientException:
-            await ctx.reply("Failed connecting to channel", delete_after=10)
+            await ctx.reply("Failed connecting to channel")
 
     @commands.command()
     @in_voice_channel(user=True, bot=True, same=False)
@@ -221,7 +221,7 @@ class Music(Cog):
             return
 
         if not ctx.voice_client:
-            await ctx.reply("Bot is not in a voice channel.", delete_after=10)
+            await ctx.reply("Bot is not in a voice channel.")
             return
 
         prompt = await ctx.prompt(
@@ -257,7 +257,7 @@ class Music(Cog):
         tracks: wavelink.Search = await wavelink.Playable.search(query)
         if not tracks:
             await ctx.reply(
-                f"{ctx.author.mention} - Could not find any tracks with that query. Please try again.", delete_after=10
+                f"{ctx.author.mention} - Could not find any tracks with that query. Please try again."
             )
             return
 
@@ -269,7 +269,7 @@ class Music(Cog):
             added += 1
             break
 
-        await ctx.reply(f"Added the {added} song(s) to the queue.", delete_after=10)
+        await ctx.reply(f"Added the {added} song(s) to the queue.")
 
         if not ctx.voice_client.playing:
             await ctx.voice_client.play(ctx.voice_client.queue.get())
@@ -293,13 +293,13 @@ class Music(Cog):
 
         tracks: wavelink.Search = await wavelink.Playable.search(query)
         if not tracks:
-            await ctx.reply("Could not find any tracks with that query. Please try again.", delete_after=10)
+            await ctx.reply("Could not find any tracks with that query. Please try again.")
             return
 
         added = 0
 
         if not isinstance(tracks, wavelink.Playlist):
-            await ctx.reply("The query is not a playlist.", delete_after=10)
+            await ctx.reply("The query is not a playlist.")
             return
 
         for track in tracks:
@@ -307,7 +307,7 @@ class Music(Cog):
             await ctx.voice_client.queue.put_wait(track)
             added += 1
 
-        await ctx.reply(f"Added the {added} song(s) to the queue.", delete_after=10)
+        await ctx.reply(f"Added the {added} song(s) to the queue.")
 
         if not ctx.voice_client.playing:
             await ctx.voice_client.play(ctx.voice_client.queue.get())
@@ -447,7 +447,7 @@ class Music(Cog):
         - `volume -10` - Decreases the volume by 10%.
         """
         if not re.match(r"(\+|-)?\d+(\.\d+)?", percentage):
-            await ctx.reply("Invalid volume percentage. Please provide a valid percentage.", delete_after=10)
+            await ctx.reply("Invalid volume percentage. Please provide a valid percentage.")
             return
 
         if percentage.startswith("+"):
@@ -535,7 +535,7 @@ class Music(Cog):
         try:
             data: dict = await node.send("GET", path=path)
         except (wavelink.LavalinkException, wavelink.NodeException):
-            await ctx.reply("There are no lyrics available for this song.", delete_after=10)
+            await ctx.reply("There are no lyrics available for this song.")
             return
 
         paginator = commands.Paginator(prefix="", suffix="", max_size=1900)
@@ -559,11 +559,11 @@ class Music(Cog):
         - `seek -10` - Seeks 10 seconds backward.
         """
         if not re.match(r"(\+|-)?\d+(\.\d+)?", seek):
-            await ctx.reply("Invalid seek time. Please provide a valid time.", delete_after=10)
+            await ctx.reply("Invalid seek time. Please provide a valid time.")
             return
 
         if ctx.voice_client.current is None:
-            await ctx.reply("There is currently no song playing.", delete_after=10)
+            await ctx.reply("There is currently no song playing.")
             return
 
         if seek.startswith("+"):
