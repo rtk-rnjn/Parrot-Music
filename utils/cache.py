@@ -8,8 +8,12 @@ if TYPE_CHECKING:
     from core import Bot
 
 SELECT_REGEX = re.compile(r"(SELECT) ([A-Z_]*) FROM (GUILDS|USERS) WHERE ID = (\?)")
-UPDATE_REGEX = re.compile(r"""(UPDATE) (GUILDS|USERS) SET ([A-Z_]*) = ([a-zA-Z0-9_'" \?]*) WHERE ID = (\?)""")
-INSERT_REGEX = re.compile(r"""(INSERT) INTO (GUILDS|USERS) \(([A-Z_ (,)?]*)\) VALUES \(([a-zA-Z0-9_'" (,)?\?]*)\)""")
+UPDATE_REGEX = re.compile(
+    r"""(UPDATE) (GUILDS|USERS) SET ([A-Z_]*) = ([a-zA-Z0-9_'" \?]*) WHERE ID = (\?)"""
+)
+INSERT_REGEX = re.compile(
+    r"""(INSERT) INTO (GUILDS|USERS) \(([A-Z_ (,)?]*)\) VALUES \(([a-zA-Z0-9_'" (,)?\?]*)\)"""
+)
 
 SP = ParamSpec("SP")
 TR = TypeVar("TR")

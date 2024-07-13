@@ -15,7 +15,9 @@ class HelpCommand(commands.HelpCommand):
         super().__init__()
         self.command_attrs["hidden"] = True
 
-    async def send_bot_help(self, mapping: Mapping[Cog | None, list[commands.Command[Any, ..., Any]]]) -> None:
+    async def send_bot_help(
+        self, mapping: Mapping[Cog | None, list[commands.Command[Any, ..., Any]]]
+    ) -> None:
         embed = discord.Embed(title="Help", color=discord.Color.blurple())
         desc = inspect.cleandoc(
             """
@@ -50,7 +52,9 @@ class HelpCommand(commands.HelpCommand):
         await self.get_destination().send(embed=embed)
 
     async def send_cog_help(self, cog: Cog) -> None:
-        embed = discord.Embed(title=f"{cog.qualified_name.upper()} Help", color=discord.Color.blurple())
+        embed = discord.Embed(
+            title=f"{cog.qualified_name.upper()} Help", color=discord.Color.blurple()
+        )
         desc = cog.description or "No description available."
         embed.description = desc
 
@@ -72,12 +76,15 @@ class HelpCommand(commands.HelpCommand):
 
         if command.aliases:
             embed.add_field(name="Aliases", value=", ".join(command.aliases))
-        
+
         if command.signature:
-            embed.add_field(name="Syntax", value=f"`{self.context.prefix}{command.qualified_name} {command.signature}`")
+            embed.add_field(
+                name="Syntax",
+                value=f"`{self.context.prefix}{command.qualified_name} {command.signature}`",
+            )
 
         await self.get_destination().send(embed=embed)
-    
+
     async def send_group_help(self, group: commands.Group[Any, ..., Any]) -> None:
         embed = discord.Embed(title=f"{group.qualified_name} Help", color=discord.Color.blurple())
         desc = group.help or "No description available."

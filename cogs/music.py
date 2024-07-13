@@ -12,6 +12,7 @@ from jishaku.paginators import PaginatorEmbedInterface
 
 from core import Bot, Cog, Context
 from utils import CONFIG, in_voice_channel, try_connect
+from .music_view import MusicView
 
 
 class Player(wavelink.Player):
@@ -66,7 +67,9 @@ class Music(Cog):
         duration_graph = player.position / playable.length
         duration_bar = "\N{BLACK RECTANGLE}" * 20
         duration_bar = (
-            duration_bar[: int(duration_graph * 20)] + "\N{RADIO BUTTON}" + duration_bar[int(duration_graph * 20) + 1 :]
+            duration_bar[: int(duration_graph * 20)]
+            + "\N{RADIO BUTTON}"
+            + duration_bar[int(duration_graph * 20) + 1 :]
         )
 
         timestamp = f"{player.position // 60000}:{(player.position // 1000) % 60:02d}"
@@ -115,7 +118,9 @@ class Music(Cog):
 
         embed = self.playing_embed(player)
 
-        msg = await player.home.send(embed=embed)
+        view = MusicView(timeout=60.0, ctx=player.ctx)
+        msg = await player.home.send(embed=embed, view=view)
+        view.message = msg
         player.main_message = msg
 
     @Cog.listener()
@@ -134,7 +139,7 @@ class Music(Cog):
 
         if hasattr(player, "main_message"):
             await player.main_message.delete(delay=0)
-        
+
         if not player.playing and player.queue.mode.value in {1, 2}:
             await player.play(player.queue.get())
 
@@ -324,7 +329,9 @@ class Music(Cog):
         """
         tracks: wavelink.Search = await wavelink.Playable.search(query)
         if not tracks:
-            await ctx.reply(f"{ctx.author.mention} - Could not find any tracks with that query. Please try again.")
+            await ctx.reply(
+                f"{ctx.author.mention} - Could not find any tracks with that query. Please try again."
+            )
             return
 
         st = ""
@@ -340,11 +347,15 @@ class Music(Cog):
                 break
 
         listed_message = await ctx.reply(st)
-        msg = await listed_message.reply(f"{ctx.author.mention} Please select a song by typing the number of the song you want to play.")
+        msg = await listed_message.reply(
+            f"{ctx.author.mention} Please select a song by typing the number of the song you want to play."
+        )
 
         while True:
             try:
-                response = await ctx.bot.wait_for("message", check=lambda m: m.author == ctx.author, timeout=30.0)
+                response = await ctx.bot.wait_for(
+                    "message", check=lambda m: m.author == ctx.author, timeout=30.0
+                )
             except asyncio.TimeoutError:
                 await msg.delete(delay=0)
                 await msg.add_reaction("\N{ALARM CLOCK}")
@@ -412,7 +423,9 @@ class Music(Cog):
                 return
 
             count += 1
-            await msg.edit(content=f"{message} {count}/{len(members) // 2} votes are required to skip the song.")
+            await msg.edit(
+                content=f"{message} {count}/{len(members) // 2} votes are required to skip the song."
+            )
 
         if count >= len(members) // 2 and self.skip_request.get(ctx.guild.id):
             await ctx.voice_client.skip(force=True)
@@ -475,7 +488,10 @@ class Music(Cog):
     async def now_playing(self, ctx: Context) -> None:
         """Show the currently playing song."""
         embed = self.playing_embed(ctx.voice_client)
-        msg = await ctx.reply(embed=embed)
+        view = MusicView(timeout=60.0, ctx=ctx)
+        msg = await ctx.reply(embed=embed, view=view)
+        view.message = msg
+
         if embed.description == "_There is currently no song playing._":
             await msg.delete(delay=10)
         else:
@@ -579,11 +595,15 @@ class Music(Cog):
         seconds = max(0, min(seconds, ctx.voice_client.current.length))
 
         await ctx.voice_client.seek(int(seconds))
-        timestamp = f"{ctx.voice_client.position // 60000}:{(ctx.voice_client.position // 1000) % 60:02d}"
+        timestamp = (
+            f"{ctx.voice_client.position // 60000}:{(ctx.voice_client.position // 1000) % 60:02d}"
+        )
         duration_graph = ctx.voice_client.position / ctx.voice_client.current.length
         duration_bar = "\N{BLACK RECTANGLE}" * 20
         duration_bar = (
-            duration_bar[: int(duration_graph * 20)] + "\N{RADIO BUTTON}" + duration_bar[int(duration_graph * 20) + 1 :]
+            duration_bar[: int(duration_graph * 20)]
+            + "\N{RADIO BUTTON}"
+            + duration_bar[int(duration_graph * 20) + 1 :]
         )
         await ctx.reply(
             f"Seeked to {timestamp}/{ctx.voice_client.current.length // 60000}:{(ctx.voice_client.current.length // 1000) % 60:02d}\n`{duration_bar}`"

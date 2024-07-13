@@ -72,7 +72,12 @@ class Context(commands.Context):
         return wrapped
 
     async def prompt(
-        self, content: str, *, delete_after: bool = False, timeout: float = 30.0, message: discord.Message | None = None
+        self,
+        content: str,
+        *,
+        delete_after: bool = False,
+        timeout: float = 30.0,
+        message: discord.Message | None = None,
     ) -> bool:
         if message is None:
             message = await self.send(content)
@@ -99,7 +104,11 @@ class Context(commands.Context):
         return str(reaction.emoji) == "\N{WHITE HEAVY CHECK MARK}"
 
     async def add_reaction(
-        self, emojis: list[str], *, message: discord.Message | None = None, raise_exception: bool = False
+        self,
+        emojis: list[str],
+        *,
+        message: discord.Message | None = None,
+        raise_exception: bool = False,
     ) -> None:
         if message is None:
             message = self.message

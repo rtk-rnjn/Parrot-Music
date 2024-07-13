@@ -44,7 +44,9 @@ def try_connect(*, cls: Type[Player]) -> Check[Context]:
             return True
 
         if ctx.voice_client and ctx.voice_client.channel != ctx.author.voice.channel:
-            raise commands.CheckFailure(f"Bot is already in a voice channel ({ctx.voice_client.channel.mention}).")
+            raise commands.CheckFailure(
+                f"Bot is already in a voice channel ({ctx.voice_client.channel.mention})."
+            )
 
         if ctx.author.voice.channel:
             try:
